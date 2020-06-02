@@ -7,11 +7,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @CrossOrigin(origins = "*")
 @RestController
-@RequestMapping("/")
-public class UserController {
-
-    @GetMapping("/hello")
+@RequestMapping("/admin")
+public class AdminController {
+    @GetMapping("/access")
     public String home() {
-        return ("<h1>Welcome</h1>");
+        return "Admin accessed successfully";
     }
 }

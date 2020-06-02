@@ -1,5 +1,6 @@
 package com.technopassel.SpringJwtAuth.util;
 
+import io.jsonwebtoken.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -9,9 +10,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -23,7 +21,7 @@ public class JwtUtil implements Serializable {
     private int jwtExpirationTime;
 
     //Function to generate token
-    public String genarateToken(UserDetails userDetails){
+    public String generateToken(UserDetails userDetails){
         Map<String, Object> claims = new HashMap<>();
         return createToken(claims, userDetails.getUsername());
     }
@@ -32,6 +30,7 @@ public class JwtUtil implements Serializable {
     private String createToken(Map<String, Object> claims, String subject){
         return Jwts.builder()
                 .setClaims(claims)
+                .setSubject(subject)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationTime))
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
@@ -39,25 +38,39 @@ public class JwtUtil implements Serializable {
     }
 
     //Common function to retrive any particular data from token
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver){
         final Claims claims = getAllClaimsFromToken(token);
         return claimsResolver.apply(claims);
     }
 
     //Function to retrieve all information from token
     private Claims getAllClaimsFromToken(String token) {
-        return Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token).getBody();
+        try{
+            return Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token).getBody();
+            //Handle exceptions as per your requirement.
+        } catch (ExpiredJwtException e) {
+            System.out.println("Token expired ");
+        } catch (SignatureException e) {
+            System.out.println("Invalid Token");
+        } catch(Exception e){
+            System.out.println("Some other exception in JWT parsing ");
+        }
+        return null;
     }
 
     //To validate token
     public Boolean validateToken(String token, UserDetails userDetails) {
-        final String username = extractUserName(token);
+        final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 
     //To extract the username from token
-    private String extractUserName(String token){
-        return extractClaim(token, Claims::getSubject);
+    public String extractUsername(String token){
+        try{
+            return extractClaim(token, Claims::getSubject);
+        } catch(NullPointerException e) {
+            return null;
+        }
     }
 
     //Check if the token has expired
@@ -68,6 +81,10 @@ public class JwtUtil implements Serializable {
 
     //To extract the expiration time of token
     private Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
+        try{
+            return extractClaim(token, Claims::getExpiration);
+        } catch(NullPointerException e) {
+            return null;
+        }
     }
 }
